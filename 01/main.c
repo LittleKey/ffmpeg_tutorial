@@ -3,49 +3,24 @@
 #include <libswscale/swscale.h>
 
 void SaveFrame(AVFrame *pFrame, int width, int height, int iFrame);
+void openVideoFile(AVFormatContext **pFormatCtx, char *filename);
+void openCodecAndCtx(AVFormatContext *pFormatCtx, AVCodecContext **pCodecCtx, AVCodec **pCodec);
+
+int videoStream = -1;
 
 int main(int argc, char *argv[]) {
     av_register_all();
 
     AVFormatContext *pFormatCtx = NULL;
-
-    // Open video file
-    if (avformat_open_input(&pFormatCtx, argv[1], NULL, NULL) != 0)
-        return -1;
-
-
-    // Retrieve stream infomation
-    if (avformat_find_stream_info(pFormatCtx, NULL) < 0)
-        return -1;
+    openVideoFile(&pFormatCtx, argv[1]);
 
     av_dump_format(pFormatCtx, 0, argv[1], 0);
 
-    int i;
-    AVCodecContext *pCodecCtxOrig = NULL;
     AVCodecContext *pCodecCtx = NULL;
-
-    // Find the first video stream
-    int videoStream = -1;
-    for (i = 0; i < pFormatCtx->nb_streams; i++) {
-        if (pFormatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
-            videoStream = i;
-            break;
-        }
-    }
-    if (videoStream == -1)
-        return -1;
-
-    // Get a pointer to the codec context for video stream
-    pCodecCtx = pFormatCtx->streams[videoStream]->codec;
-
     AVCodec *pCodec = NULL;
+    // Open codec
+    openCodecAndCtx(pFormatCtx, &pCodecCtx, &pCodec);
 
-    // Find the decoder for the video stream
-    pCodec = avcodec_find_decoder(pCodecCtx->codec_id);
-    if (pCodec == NULL) {
-        fprintf(stderr, "Unsupported codecn");
-        return -1;
-    }
     // Copy context
     /*
     pCodecCtx = avcodec_alloc_context3(pCodec);
@@ -54,10 +29,6 @@ int main(int argc, char *argv[]) {
         return -1;
     }
     */
-    // Open codec
-    if (avcodec_open2(pCodecCtx, pCodec, NULL) < 0)
-        return -1;
-
     AVFrame *pFrame = NULL;
 
     // Allocate video frame
@@ -92,7 +63,7 @@ int main(int argc, char *argv[]) {
             NULL
         );
 
-    i = 0;
+    int i = 0;
     while (av_read_frame(pFormatCtx, &packet) >= 0) {
         if (packet.stream_index == videoStream) {
             avcodec_decode_video2(pCodecCtx, pFrame, &frameFinished, &packet);
@@ -138,4 +109,43 @@ void SaveFrame(AVFrame *pFrame, int width, int height, int iFrame) {
         fwrite(pFrame->data[0] + y*pFrame->linesize[0], 1, width*3, pFile);
     }
     fclose(pFile);
+}
+
+void openVideoFile(AVFormatContext **pFormatCtx, char *filename) {
+
+    // Open video file
+    if (avformat_open_input(pFormatCtx, filename, NULL, NULL) != 0)
+        exit(-1);
+
+
+    // Retrieve stream infomation
+    if (avformat_find_stream_info(*pFormatCtx, NULL) < 0)
+        exit(-1);
+}
+
+void openCodecAndCtx(AVFormatContext *pFormatCtx, AVCodecContext **pCodecCtx, AVCodec **pCodec) {
+    // Find the first video stream
+    int i;
+    for (i = 0; i < pFormatCtx->nb_streams; i++) {
+        if (pFormatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
+            videoStream = i;
+            break;
+        }
+    }
+    if (videoStream == -1)
+        exit(-1);
+
+    // Get a pointer to the codec context for video stream
+    *pCodecCtx = pFormatCtx->streams[videoStream]->codec;
+
+
+    // Find the decoder for the video stream
+    *pCodec = avcodec_find_decoder((*pCodecCtx)->codec_id);
+    if (*pCodec == NULL) {
+        fprintf(stderr, "Unsupported codecn");
+        exit(-1);
+    }
+
+    if (avcodec_open2(*pCodecCtx, *pCodec, NULL) < 0)
+        exit(-1);
 }

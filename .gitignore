@@ -1,3 +1,4 @@
 *.ppm
 build
 static
+.DS_Store
