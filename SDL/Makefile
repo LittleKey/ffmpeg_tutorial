@@ -10,13 +10,10 @@ run: build
 build: main.o
 	clang -o build main.o ${CPP_LINK_FLAG}
 
-main.o: main.cpp header.o
+main.o: main.cpp header.cpp header.hpp
 	clang -c main.cpp ${CPP_COMPILE_FLAG}
 
-header.o: header.hpp header.cpp
-	clang -c header.hpp header.cpp ${CPP_COMPILE_FLAG}
-
-clean: build
+clean:
 	rm ${CURRENT_DIR}/build
 	rm ${CURRENT_DIR}/*.o
 	rm ${CURRENT_DIR}/*.gch
