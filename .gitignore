@@ -2,3 +2,5 @@
 build
 static
 .DS_Store
+*.o
+*.gch
